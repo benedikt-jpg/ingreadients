@@ -1,0 +1,579 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>APEX45 Ingredient Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lab-sheet explorer. Summary strip, job filter, then an ingredient index on the left and one ingredient dossier on the right. */
+:root{
+  --ground:#F7F6F2; --surface:#FFFFFF; --ink:#16211F; --muted:#5E6B69; --line:#DEDCD4;
+  --teal:#0E2A33; --teal-soft:#E3ECEC; --amber:#B8791A; --amber-soft:#F5E8D0;
+  --risk:#A8402A; --risk-soft:#F6E0D9; --ok:#3B7055; --ok-soft:#DFEDE4; --open:#6B5A2E; --open-soft:#EFE9D6;
+  --night:#14323B; --night-ink:#E6EFEF;
+  --sans:"Hanken Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#0F1719; --surface:#162124; --ink:#E7ECEA; --muted:#97A5A3; --line:#2A383B;
+  --teal:#9FC6CC; --teal-soft:#1D3238; --amber:#E0A84A; --amber-soft:#3A2E17;
+  --risk:#F08D74; --risk-soft:#3C211B; --ok:#86C7A1; --ok-soft:#1B3326; --open:#D9C58D; --open-soft:#332C18;
+  --night:#0B2128; --night-ink:#E6EFEF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ground:#0F1719; --surface:#162124; --ink:#E7ECEA; --muted:#97A5A3; --line:#2A383B;
+  --teal:#9FC6CC; --teal-soft:#1D3238; --amber:#E0A84A; --amber-soft:#3A2E17;
+  --risk:#F08D74; --risk-soft:#3C211B; --ok:#86C7A1; --ok-soft:#1B3326; --open:#D9C58D; --open-soft:#332C18;
+  --night:#0B2128; --night-ink:#E6EFEF; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:clamp(16px,3vw,32px);padding-block:28px 56px;display:grid;gap:22px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+header{display:grid;gap:8px}
+h1{font-size:clamp(28px,4vw,42px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+.lede{max-width:70ch;color:var(--muted);margin:0}
+.lede b{color:var(--ink);font-weight:600}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.strip div{background:var(--surface);padding:12px 14px;display:grid;gap:2px}
+.strip .n{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.strip .n.am{color:var(--amber)} .strip .n.rk{color:var(--risk)}
+.strip .l{font-size:12.5px;color:var(--muted);line-height:1.3}
+.controls{display:grid;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.row .lab{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);min-width:64px}
+button.chip{font:inherit;font-size:13px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+button.chip:hover{border-color:var(--teal)}
+button.chip[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:var(--ground)}
+button.chip:focus-visible,.item:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.legend{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;border:2px solid var(--teal);vertical-align:middle;margin-right:4px}
+.dot.c{background:var(--teal)} .dot.s{background:transparent;border-style:dashed}
+.main{display:grid;grid-template-columns:330px minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:1fr}}
+.index{display:grid;gap:14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px);overflow:auto;padding-right:4px}
+@media (max-width:860px){.index{position:static;max-height:none;overflow:visible}}
+.grp{display:grid;gap:4px}
+.grp h3{margin:0 0 2px;font-size:11.5px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;display:flex;justify-content:space-between}
+.item{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 10px;border-radius:8px;border:1px solid transparent;background:transparent}
+.item:hover{background:var(--surface);border-color:var(--line)}
+.item[aria-current="true"]{background:var(--surface);border-color:var(--teal);box-shadow:inset 3px 0 0 var(--teal)}
+.item .nm{font-weight:600;font-size:14.5px}
+.item .ds{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.item .sub{grid-column:1/-1;font-size:12.5px;color:var(--muted);line-height:1.35}
+.item.dim{opacity:.32}
+.tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.t-above{background:var(--risk-soft);color:var(--risk)} .t-at{background:var(--amber-soft);color:var(--amber)}
+.t-within{background:var(--ok-soft);color:var(--ok)} .t-none{background:var(--teal-soft);color:var(--teal)}
+.t-open{background:var(--open-soft);color:var(--open)} .t-out{background:var(--line);color:var(--muted)}
+.dossier{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:clamp(18px,2.6vw,30px);display:grid;gap:22px;min-width:0;scroll-margin-top:12px}
+.d-head{display:grid;gap:6px}
+.d-head h2{margin:0;font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-.015em;line-height:1.1}
+.d-head .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.d-head .oneliner{font-size:17px;max-width:62ch;margin:4px 0 0}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.facts div{background:var(--ground);padding:10px 12px;display:grid;gap:2px}
+.facts .k{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.facts .v{font-weight:600;font-variant-numeric:tabular-nums}
+.gauge{display:grid;gap:6px}
+.gauge svg{width:100%;height:auto;display:block;overflow:visible}
+.sec{display:grid;gap:6px;max-width:72ch}
+.sec h4{margin:0;font-size:12px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--teal);font-weight:500}
+.sec p{margin:0}
+.jobs{display:flex;flex-wrap:wrap;gap:6px}
+.job{font-size:13px;padding:3px 10px;border-radius:999px;border:1.5px solid var(--teal);color:var(--teal)}
+.job.c{background:var(--teal);color:var(--surface)}
+.job.s{border-style:dashed}
+.claims{margin:0;padding-left:18px;display:grid;gap:3px;font-size:14px}
+.claims li::marker{color:var(--muted)}
+.art14{background:var(--teal-soft);border-radius:6px;padding:8px 10px;font-size:14px}
+.flags{display:grid;gap:8px}
+.flag{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:10px 12px;border-radius:8px;font-size:14px}
+.flag.risk{background:var(--risk-soft)} .flag.open{background:var(--open-soft)} .flag.note{background:var(--teal-soft)}
+.flag .k{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;padding-top:2px;min-width:52px}
+.flag.risk .k{color:var(--risk)} .flag.open .k{color:var(--open)} .flag.note .k{color:var(--teal)}
+.nav{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:14px}
+.nav button{font:inherit;font-size:13.5px;background:none;border:1px solid var(--line);border-radius:8px;padding:7px 12px;color:var(--ink);cursor:pointer}
+.nav button:hover{border-color:var(--teal)}
+footer{font-size:12.5px;color:var(--muted);display:grid;gap:4px;border-top:1px solid var(--line);padding-top:14px;max-width:90ch}
+footer b{color:var(--ink)}
+@media (prefers-reduced-motion:no-preference){.dossier{transition:opacity .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">APEX45 · internal · formulation v1.2 (Notion, 28 Sep 2026)</span>
+    <h1>What every ingredient is there to do</h1>
+    <p class="lede">Each entry separates <b>what the ingredient does in the body</b>, <b>why it earns a place in a 45–65 stack</b>, and <b>what we are actually allowed to say</b> about it. Those three are different things, and the gaps between them are where most of the open decisions sit. Pick an ingredient, or filter by the job it does.</p>
+  </header>
+
+  <section class="strip" aria-label="Formulation at a glance">
+    <div><span class="n">18</span><span class="l">base ingredients across two servings (14 morning, 4 evening)</span></div>
+    <div><span class="n">~7.6 g</span><span class="l">daily fill: ~0.55 g morning capsule mass, ~7 g evening stick</span></div>
+    <div><span class="n am">4</span><span class="l">doses above the BfR proposal: D3, K2, B6, iodine</span></div>
+    <div><span class="n">5</span><span class="l">doses sitting exactly at the BfR proposal</span></div>
+    <div><span class="n">2</span><span class="l">base ingredients with no authorised claim: CoQ10, glycine</span></div>
+    <div><span class="n rk">2</span><span class="l">medication interactions that need a pack warning: K2, potassium</span></div>
+  </section>
+
+  <section class="controls" aria-label="Filters">
+    <div class="row" id="groupRow"><span class="lab">Show</span></div>
+    <div class="row" id="jobRow"><span class="lab">By job</span></div>
+    <div class="legend">
+      <span><span class="dot c"></span>backed by an authorised EU claim</span>
+      <span><span class="dot s"></span>rationale only, no claim we can print</span>
+    </div>
+  </section>
+
+  <section class="main">
+    <nav class="index" id="index" aria-label="Ingredients"></nav>
+    <article class="dossier" id="dossier" aria-live="polite"></article>
+  </section>
+
+  <footer>
+    <span><b>Not CMO-quoted, not legally opined. Regulatory- and medically-sensitive throughout.</b> Body-function and rationale text is internal background for Jan's review, not marketing copy. Only the listed authorised claims (Reg. (EU) 432/2012, shortened wording here) may ever reach a customer, and only at their conditions of use.</span>
+    <span>BfR positions: Stellungnahme 009/2021 and the 2024 B6 update (Stellungnahme 008/2024, B6 lowered to 0.9 mg after EFSA cut the UL to 12 mg). Doses and phases from formulation v1.2; compound masses are derived ranges, not specs. Interaction and cohort notes are general knowledge, unsourced to the project, for Jan to confirm.</span>
+    <span>Not covered here: the 1 Oct deck variants (omega-3 as outer shell, creatine in the evening, Bone/Immune add-ons), which are unconfirmed against v1.2.</span>
+  </footer>
+</div>
+
+<script>
+const JOBS={
+  energy:"Energy & metabolism", bone:"Bones & muscle", heart:"Heart & circulation",
+  mind:"Nerves & mind", immune:"Immune & cell protection", beauty:"Skin, hair & nails", sleep:"Evening wind-down"
+};
+const GROUPS=[
+  ["oil","Morning · oil phase"],["powder","Morning · powder phase"],["pm","Evening stick"],
+  ["addon","Add-ons"],["form","Carriers & delivery form"],["rejected","Rejected or dropped"]
+];
+const FILTERS=[["all","Everything"],["base","Base formula"],["addon","Add-ons"],["form","Carriers & form"],["rejected","Rejected"],["flag","Has a risk flag"]];
+
+/* bfr: s = above | at | within | none | open | out ; nrv = % of NRV (number) or null; bfrPct = BfR proposal as % NRV where relevant */
+const D=[
+/* ---------- MORNING OIL ---------- */
+{id:"coq10",g:"oil",name:"Coenzyme Q10",dose:"100 mg",form:"Ubiquinone or ubiquinol, not yet specified",nrv:null,bfr:"none",bfrTxt:"No NRV, no BfR proposal",
+ one:"The spark plug of cell energy. The headline ingredient the cohort already recognises, and the one ingredient that shapes the whole morning format.",
+ body:"Part of the chain inside mitochondria that turns food into ATP, the cell's usable energy. Also a fat-soluble antioxidant sitting in cell membranes. The body makes its own, but tissue levels fall with age, and statins (common in this cohort) block the same pathway that produces it.",
+ why:"Brand and recognition more than nutrition. Q10 is a household word in Germany from skincare, and it reads as \"cell energy for 45+\" without us saying it. It is the one morning ingredient that does not look like a budget 50+ multivitamin.",
+ formWhy:"Absorbs poorly as a dry powder. Dissolved in oil it does much better, which is why it sits in the oil phase. Ubiquinol (reduced form) absorbs better again but costs more and oxidises easily; the form is not yet set.",
+ doseWhy:"100 mg is the common retail dose in Germany. Clinical work in heart patients used 300 mg as a medicine, which is outside our positioning anyway.",
+ jobs:{energy:"s",heart:"s"},claims:[],claimNote:"EFSA rejected every CoQ10 claim submitted. It goes on the pack with no reason given, and nothing on the page may hint at energy, heart or ageing from Q10.",
+ flags:[["open","Format driver. Without CoQ10, D3, K2 and E could go in dry and the morning could become one ordinary capsule from any CM. Q10 is effectively what forces the oil phase and the DUOCAP route (29 Sep read)."],
+        ["risk","May weaken the effect of warfarin-type blood thinners. Low dose, but for Jan to check alongside the K2 warning."],
+        ["note","Large share of dry mass: C, CoQ10 and E together are ~78% of the morning compound mass."]]},
+
+{id:"d3",g:"oil",name:"Vitamin D3",dose:"50 µg (2,000 IU)",form:"Cholecalciferol, oil-soluble. Lanolin or lichen (vegan) source open",nrv:1000,bfr:"above",bfrPct:400,bfrTxt:"Above BfR: proposal is 20 µg",
+ one:"The bone-and-muscle hormone that most Germans run low on half the year. The base's anchor nutrient.",
+ body:"Not really a vitamin but a hormone precursor. It controls how much calcium and phosphate the gut absorbs, keeps bone mineralised, supports muscle function, and tunes the immune system.",
+ why:"The skin makes less of it with age, and at German latitudes there is almost no usable sun from October to March. A large share of German adults sit below the recommended blood level in winter. For 45–65 it is the most defensible \"everyone should probably take this\" nutrient.",
+ formWhy:"D3 rather than D2 because it raises blood levels more reliably. Oil-soluble grade because it lives in the oil phase with K2.",
+ doseWhy:"50 µg aims at actually moving blood levels in people starting low. It is 2.5× the BfR proposal and half the EFSA upper limit (100 µg). 20 µg already carries every claim, including the falls claim, whose condition of use is set at 20 µg.",
+ jobs:{bone:"c",immune:"c"},
+ claims:["Normal absorption and use of calcium and phosphorus","Normal blood calcium levels","Maintenance of normal bones and teeth","Maintenance of normal muscle function","Normal function of the immune system","Role in cell division"],
+ art14:"Art. 14 disease-risk claim: reduces the risk of falling associated with postural instability and muscle weakness (men and women 60+). Falling is a risk factor for bone fractures.",
+ flags:[["risk","Above BfR. No mutual recognition on a Germany-only launch, so it needs a documented tox assessment (open item 3). Earns no extra claim over 20 µg. Could block drugstore listings at month 12."],
+        ["open","Art. 14 falls claim is 60+ only and collides with a 45–65 audience. Decide deliberately whether to use it (open item 4)."],
+        ["note","If any dose stays above BfR, D3 is the likeliest one Jan can justify on efficacy."]]},
+
+{id:"k2",g:"oil",name:"Vitamin K2 (MK-7)",dose:"75 µg",form:"Menaquinone-7, oil-soluble, long half-life",nrv:100,bfr:"above",bfrPct:33.3,bfrTxt:"Above BfR: K2 proposal is 25 µg",
+ one:"The traffic controller for calcium. Pairs with D3 so the extra calcium goes to bone.",
+ body:"Activates proteins that bind calcium: osteocalcin, which builds it into bone, and matrix Gla protein, which works in vessel walls. Also needed for normal blood clotting.",
+ why:"The D3 + K2 pairing is a known, expected combination in the category. The logic: D3 raises calcium uptake, K2 helps direct it to bone rather than arteries. The mechanism is well understood; hard outcome evidence (fractures, arteries) is thinner than the story.",
+ formWhy:"MK-7 rather than K1 or MK-4 because it stays in the blood for days, so once daily works.",
+ doseWhy:"75 µg is 100% NRV and three times the BfR K2 proposal. 25 µg would still be well above the 15% NRV claim threshold.",
+ jobs:{bone:"c",heart:"s"},
+ claims:["Normal blood clotting","Maintenance of normal bones"],
+ flags:[["risk","Interacts with vitamin K antagonists (Marcumar/phenprocoumon, warfarin), widely prescribed to older Germans. BfR asks for a warning that anyone on anticoagulants talks to their doctor first. Needs to be on the pack."],
+        ["risk","Above BfR, same tox-assessment problem as D3, and no extra claim for the extra dose."],
+        ["note","The vessel-health story is rationale only. No claim covers arteries or calcification."]]},
+
+{id:"vite",g:"oil",name:"Vitamin E",dose:"12 mg α-TE",form:"Tocopherol, natural or synthetic not yet specified",nrv:100,bfr:"within",bfrTxt:"Within BfR (proposal 30 mg)",
+ one:"The membrane antioxidant, doing a second job as the oil phase's own preservative.",
+ body:"The main fat-soluble antioxidant in the body. It sits in cell membranes and stops fats in them from being damaged by oxidation. Vitamin C regenerates it after use.",
+ why:"Two reasons. Nutritionally it rounds out the antioxidant pairing with vitamin C. Technically it protects the other oil-phase ingredients (CoQ10, D3, K2) from going rancid in the capsule. It earns its place even if nobody reads the label.",
+ formWhy:"Oil phase because it is fat-soluble. Natural d-alpha-tocopherol is more potent per mg than synthetic dl-alpha; the choice is open and affects cost and label wording.",
+ doseWhy:"100% NRV, well inside safe range.",
+ jobs:{immune:"c"},
+ claims:["Protection of cells from oxidative stress"],
+ flags:[["note","Part of the ~173 mg the oil phase takes out of the dry mix."]]},
+
+/* ---------- MORNING POWDER ---------- */
+{id:"vitc",g:"powder",name:"Vitamin C",dose:"250 mg",form:"Ascorbic acid or a buffered ascorbate, not specified",nrv:312,bfr:"at",bfrTxt:"At BfR proposal (250 mg)",
+ one:"The broadest-working vitamin in the capsule, and the biggest thing in it by weight.",
+ body:"Needed to build collagen (skin, gums, cartilage, bone, blood vessels), runs the immune system, acts as a water-soluble antioxidant, regenerates vitamin E, and helps the gut absorb iron from plant food.",
+ why:"Cheap, universally understood, and it carries the most authorised claims of anything in the capsule. Collagen is a live theme for 45+ (skin, joints), and C is the only collagen claim we can make.",
+ formWhy:"Powder phase. Buffered forms are gentler on sensitive stomachs; plain ascorbic acid is smaller and cheaper.",
+ doseWhy:"312% NRV, sitting exactly on the BfR proposal. Little reason to go higher; the body excretes the excess.",
+ jobs:{immune:"c",energy:"c",beauty:"c",bone:"c",mind:"c"},
+ claims:["Normal collagen formation for blood vessels, bones, cartilage, gums, skin, teeth","Normal function of the immune system","Protection of cells from oxidative stress","Reduction of tiredness and fatigue","Normal energy-yielding metabolism","Normal nervous system and psychological function","Regeneration of the reduced form of vitamin E","Increases iron absorption"],
+ flags:[["note","At the BfR ceiling, so any add-on with vitamin C would push the total over."],["note","Largest single item in the morning dry mass (~250 of ~550 mg)."]]},
+
+{id:"niacin",g:"powder",name:"Niacin (B3)",dose:"16 mg NE",form:"Most likely nicotinamide (no flushing)",nrv:100,bfr:"within",bfrTxt:"Within BfR",
+ one:"The raw material for NAD, the molecule every cell uses to burn fuel.",
+ body:"Turned into NAD and NADP, which hundreds of enzymes need to release energy from food and repair DNA. Also supports skin and mucous membranes.",
+ why:"A standard part of a complete B-complex. It also touches the NAD story that longevity brands sell hard; we can nod to cell energy through the authorised claims but cannot borrow the longevity framing.",
+ formWhy:"Nicotinamide avoids the skin flush that nicotinic acid causes, and BfR treats the two forms very differently (nicotinic acid's limit is tiny).",
+ doseWhy:"100% NRV. Replacement, not megadose.",
+ jobs:{energy:"c",mind:"c",beauty:"c"},
+ claims:["Normal energy-yielding metabolism","Normal nervous system and psychological function","Maintenance of normal skin and mucous membranes","Reduction of tiredness and fatigue"],
+ flags:[["note","Confirm the form with the CM: nicotinic acid would be a different regulatory and tolerability story."]]},
+
+{id:"b6",g:"powder",name:"Vitamin B6",dose:"1.4 mg",form:"Pyridoxine HCl or P5P (active form), not specified",nrv:100,bfr:"above",bfrPct:64.3,bfrTxt:"Above BfR: proposal lowered to 0.9 mg in 2024",
+ one:"The protein and neurotransmitter vitamin, and the one where the safety ceiling recently moved down.",
+ body:"Needed to process amino acids, build neurotransmitters such as serotonin and dopamine, form red blood cells, clear homocysteine, and regulate hormone activity.",
+ why:"Core of a B-complex, and the only authorised \"hormonal activity\" claim, which is relevant to a 45–65 audience going through hormonal change without naming it.",
+ formWhy:"Powder phase. P5P is the body's active form, a premium signal; pyridoxine is standard and cheap.",
+ doseWhy:"1.4 mg is exactly 100% NRV, yet above the 2024 BfR proposal of 0.9 mg. BfR cut it because nerve damage has been reported at lower long-term doses than once thought. 0.9 mg (64% NRV) keeps every claim.",
+ jobs:{energy:"c",mind:"c",immune:"c",heart:"s"},
+ claims:["Regulation of hormonal activity","Normal energy-yielding metabolism","Normal nervous system and psychological function","Normal homocysteine metabolism","Normal protein and glycogen metabolism","Normal red blood cell formation","Normal function of the immune system","Reduction of tiredness and fatigue"],
+ flags:[["risk","Above BfR for no claim gain. This is the easiest of the four above-BfR doses to fix: drop to 0.9 mg."],["open","Stacking: any add-on carrying B6 would push it further over (open item 5)."]]},
+
+{id:"b2",g:"powder",name:"Vitamin B2 (riboflavin)",dose:"1.4 mg",form:"Riboflavin or riboflavin-5'-phosphate",nrv:100,bfr:"within",bfrTxt:"Within BfR",
+ one:"The energy co-worker that also helps folate and B6 do their jobs.",
+ body:"Forms the coenzymes FAD and FMN, used in energy production, in activating B6 and folate, in iron metabolism, and in the glutathione antioxidant system. Also supports vision and skin.",
+ why:"Completes the B-complex and supports the homocysteine trio (folate, B6, B12) working properly.",
+ formWhy:"Powder phase. Bright yellow, which colours the powder and the user's urine.",
+ doseWhy:"100% NRV.",
+ jobs:{energy:"c",immune:"c",beauty:"c",mind:"c"},
+ claims:["Normal energy-yielding metabolism","Protection of cells from oxidative stress","Maintenance of normal vision, skin, mucous membranes and red blood cells","Normal iron metabolism","Normal nervous system","Reduction of tiredness and fatigue"],
+ flags:[["note","Bright yellow urine is riboflavin and harmless. Worth a line on the leaflet and in customer service scripts before the first complaint."]]},
+
+{id:"b1",g:"powder",name:"Vitamin B1 (thiamine)",dose:"1.1 mg",form:"Thiamine HCl or mononitrate",nrv:100,bfr:"within",bfrTxt:"Within BfR",
+ one:"The carbohydrate-burning vitamin, and the only morning nutrient with a heart claim.",
+ body:"Needed to turn carbohydrates into energy, and for nerve and heart muscle function.",
+ why:"Completes the B-complex, and carries the \"normal function of the heart\" claim, which matters because omega-3 (the other heart claim) is now an add-on, not base.",
+ formWhy:"Powder phase. Standard salts; no reason to pay for benfotiamine at this dose.",
+ doseWhy:"100% NRV.",
+ jobs:{energy:"c",heart:"c",mind:"c"},
+ claims:["Normal function of the heart","Normal energy-yielding metabolism","Normal nervous system and psychological function"],
+ flags:[["note","The base's only heart claim. Worth knowing before anyone writes heart copy for the base."]]},
+
+{id:"folate",g:"powder",name:"Folate (5-MTHF)",dose:"200 µg",form:"5-methyltetrahydrofolate, the active form",nrv:100,bfr:"at",bfrTxt:"At BfR proposal (200 µg, set for folic acid)",
+ one:"The cell-division vitamin, chosen in its ready-to-use form.",
+ body:"Needed for making DNA and new cells, forming blood, and, together with B6 and B12, clearing homocysteine, a blood marker linked to vascular and cognitive risk.",
+ why:"Part of the homocysteine trio. The active form is also a quality signal that pharmacists recognise and budget brands skip.",
+ formWhy:"5-MTHF needs no conversion step, so it works regardless of common MTHFR gene variants, and leaves no unmetabolised folic acid in the blood.",
+ doseWhy:"100% NRV, at the BfR proposal. Co-dosed with B12, which avoids folate masking a B12 deficiency.",
+ jobs:{energy:"c",mind:"c",immune:"c",heart:"s"},
+ claims:["Normal blood formation","Normal homocysteine metabolism","Normal amino acid synthesis","Normal psychological function","Normal function of the immune system","Reduction of tiredness and fatigue","Role in cell division"],
+ flags:[["note","The homocysteine-to-vessels link is rationale only; the claim is about the metabolism, not the heart."]]},
+
+{id:"iodine",g:"powder",name:"Iodine",dose:"150 µg",form:"Potassium iodide",nrv:100,bfr:"above",bfrPct:66.7,bfrTxt:"Above BfR: proposal is 100 µg",
+ one:"The thyroid's raw material. Useful in Germany, and the dose most likely to need medical caution in this age group.",
+ body:"Built into the thyroid hormones that set the body's metabolic rate, and needed for normal brain function.",
+ why:"Germany is historically an iodine-short country and iodised-salt use is falling, so a modest top-up is sensible for many adults.",
+ formWhy:"Potassium iodide, the standard form. Tiny mass.",
+ doseWhy:"150 µg is 100% NRV and 1.5× the BfR proposal. 100 µg keeps every claim.",
+ jobs:{energy:"c",mind:"c",beauty:"c"},
+ claims:["Normal production of thyroid hormones and normal thyroid function","Normal cognitive function","Normal energy-yielding metabolism","Normal nervous system","Maintenance of normal skin"],
+ flags:[["risk","Thyroid nodules and autonomous nodules become common after 45. In those people extra iodine can tip the thyroid into overactivity. BfR's lower ceiling exists partly for this group. Jan should look at it (flagged 29 Sep)."],["risk","Above BfR for no claim gain."]]},
+
+{id:"biotin",g:"powder",name:"Biotin",dose:"50 µg",form:"D-biotin",nrv:100,bfr:"within",bfrTxt:"Within BfR",
+ one:"The hair-and-skin vitamin the cohort already buys on its own.",
+ body:"A cofactor for enzymes that build fatty acids and process sugar and amino acids. Also needed for normal hair, skin and mucous membranes.",
+ why:"Gives the base an authorised hair and skin claim, which is a strong purchase driver for 45+ women without any menopause framing.",
+ formWhy:"Powder phase. Microgram dose, negligible mass.",
+ doseWhy:"100% NRV. Beauty brands sell 5–10 mg; we do not need that for the claim.",
+ jobs:{beauty:"c",energy:"c",mind:"c"},
+ claims:["Maintenance of normal hair","Maintenance of normal skin and mucous membranes","Normal energy-yielding metabolism","Normal macronutrient metabolism","Normal nervous system and psychological function"],
+ flags:[["note","High-dose biotin can distort some blood tests (thyroid, troponin). At 50 µg the risk is very low, but it is a known pharmacist question."]]},
+
+{id:"chromium",g:"powder",name:"Chromium",dose:"40 µg",form:"Picolinate or chloride, not specified",nrv:100,bfr:"within",bfrTxt:"Within BfR",
+ one:"The blood-sugar trace mineral. Quietly one of the most cohort-relevant claims in the capsule.",
+ body:"Helps insulin do its job of moving glucose from the blood into cells, and supports the processing of carbohydrates, fats and proteins.",
+ why:"Blood-sugar regulation gets worse with age and weight, and \"normal blood glucose levels\" is an authorised claim that speaks to this audience without naming diabetes.",
+ formWhy:"Picolinate absorbs better and is the common premium form; chloride is cheaper.",
+ doseWhy:"100% NRV, inside the BfR proposal.",
+ jobs:{energy:"c"},
+ claims:["Contributes to the maintenance of normal blood glucose levels","Normal macronutrient metabolism"],
+ flags:[["risk","Claim wording is sensitive. Anything that reads as diabetes prevention or GLP-1 adjacency turns it into a disease claim. Keep it to the exact authorised wording."]]},
+
+{id:"b12",g:"powder",name:"Vitamin B12",dose:"25 µg",form:"Methyl- or cyanocobalamin, not specified",nrv:1000,bfr:"at",bfrTxt:"At BfR proposal (25 µg)",
+ one:"The nerve-and-blood vitamin that older stomachs absorb worst.",
+ body:"Needed for nerve function, red blood cell formation, DNA synthesis and, with folate and B6, clearing homocysteine.",
+ why:"Absorption falls with age because the stomach makes less acid and intrinsic factor. Metformin and acid blockers (PPIs), both common in this age group, reduce it further. It is one of the few nutrients where 45–65 has a real, age-specific reason to supplement.",
+ formWhy:"Methylcobalamin is the premium-signal form; cyanocobalamin is the most stable and best studied. Choice open.",
+ doseWhy:"1000% NRV on purpose. At high oral doses about 1% is absorbed passively without intrinsic factor, which works around the age problem. Sits on the BfR proposal.",
+ jobs:{energy:"c",mind:"c",immune:"c",heart:"s"},
+ claims:["Normal nervous system and psychological function","Normal red blood cell formation","Normal homocysteine metabolism","Normal energy-yielding metabolism","Normal function of the immune system","Reduction of tiredness and fatigue","Role in cell division"],
+ flags:[["note","The cleanest \"why this is for 45+\" story in the morning capsule, and it is fully claim-backed."]]},
+
+/* ---------- EVENING ---------- */
+{id:"mg",g:"pm",name:"Magnesium bisglycinate",dose:"250 mg elemental",form:"Magnesium bound to glycine. Compound mass 1.79–2.21 g depending on grade",nrv:67,bfr:"at",bfrTxt:"At BfR (250 mg), but BfR wants it split into two portions",
+ one:"The reason the product has an evening at all. The cohort's most-used supplement, and the main bulk of the stick.",
+ body:"Used by hundreds of enzymes, including every one that handles ATP. Relaxes muscle and calms nerve signalling, keeps electrolytes balanced, and is part of bone.",
+ why:"Founders agreed on 22 Sep: it is the supplement this cohort already takes, and it carries the tiredness and muscle claims. At this dose it needs about four tablets, which is what forced the Day & Night split.",
+ formWhy:"Bisglycinate is gentle on the gut (citrate and oxide cause loose stools more often) and is the resorption story we can tell against Orthomol. It also delivers about 1.5 g of glycine for free.",
+ doseWhy:"67% NRV, exactly at the BfR proposal. BfR recommends splitting it across two portions because of the laxative effect of a single large dose; we give it in one.",
+ jobs:{energy:"c",bone:"c",mind:"c",sleep:"s"},
+ claims:["Reduction of tiredness and fatigue","Normal muscle function","Normal nervous system and psychological function","Electrolyte balance","Normal energy-yielding metabolism","Normal protein synthesis","Maintenance of normal bones and teeth","Role in cell division"],
+ flags:[["open","Grade decision (open item 2). Pure bisglycinate (11–14% Mg) vs buffered ~20%: buffered cuts the compound to ~1.25 g and is the biggest COGS lever in the base, but buffered means blended with oxide, which weakens the resorption story."],
+        ["risk","No sleep claim exists for magnesium. The evening ritual can imply wind-down; the copy cannot say sleep."],
+        ["note","Single-portion dose against BfR's two-portion advice. Watch for GI complaints in the first cohort."]]},
+
+{id:"k",g:"pm",name:"Potassium",dose:"400 mg",form:"Tripotassium citrate, ~1.11 g compound",nrv:20,bfr:"within",bfrTxt:"Within BfR (proposal 500 mg)",
+ one:"Carries the blood-pressure claim, the most relevant claim available for this age group. Also the biggest safety question in the product.",
+ body:"The main electrolyte inside cells. Drives nerve signals and muscle contraction, including the heart, and balances sodium's effect on blood pressure.",
+ why:"\"Maintenance of normal blood pressure\" speaks directly to 45–65 without any age signal or disease wording. Added in v1.2 alongside glycine.",
+ formWhy:"Citrate is alkaline and gentler than chloride, and fits the evening drink. It tastes bitter and salty, which the flavour has to hide.",
+ doseWhy:"20% NRV, enough to clear the 15% threshold for the claim and below the BfR 500 mg proposal. 300 mg (15% NRV) would still carry the claim and free ~280 mg of fill.",
+ jobs:{heart:"c",bone:"c",mind:"c"},
+ claims:["Maintenance of normal blood pressure","Normal muscle function","Normal functioning of the nervous system"],
+ flags:[["risk","Drug interaction. ACE inhibitors, sartans and potassium-sparing diuretics raise blood potassium, as does reduced kidney function. Draft warning for legal review: \"Bei eingeschränkter Nierenfunktion oder Einnahme von Arzneimitteln, die den Kaliumhaushalt beeinflussen, nur nach Rücksprache mit dem Arzt verzehren.\""],
+        ["risk","The tension: the blood-pressure claim attracts exactly the people on blood-pressure medication that the warning excludes."],
+        ["open","Sign-off needed from Jan (dose, wording), legal, and Marcus (do pharmacists read K + blood pressure as an asset or a red flag?). Open item 8."]]},
+
+{id:"glycine",g:"pm",name:"Glycine",dose:"1.5 g free (~3 g total)",form:"Free amino acid, plus ~1.5 g arriving with the Mg chelate",nrv:null,bfr:"none",bfrTxt:"No NRV, no BfR proposal",
+ one:"The quiet engine of the evening thesis. Does two jobs, and we can claim neither.",
+ body:"The simplest amino acid. In the brain and spinal cord it acts as a calming signal. Small Japanese studies giving 3 g before bed found better subjective sleep quality and a slight drop in core body temperature, which is part of falling asleep. It is also a building block of collagen and glutathione.",
+ why:"Ben's stickiness thesis (1 Oct): magnesium plus glycine produce a felt effect within a week, which collagen-type products cannot. 3 g total matches the studied dose. It also tastes sweet, which helps mask magnesium and potassium.",
+ formWhy:"Free powder, dissolves easily. Half of the 3 g comes free with the bisglycinate.",
+ doseWhy:"Topped up to reach ~3 g, the dose used in the sleep studies.",
+ jobs:{sleep:"s",beauty:"s"},
+ claims:[],claimNote:"No authorised claim. Listed on pack, no reason given. Sleep, calm or recovery wording would be an unauthorised health claim.",
+ flags:[["risk","The product's felt effect may come from an ingredient we cannot talk about. Marketing has to let the ritual and the user's own experience carry it."],
+        ["note","The sleep evidence is small-sample and largely from one research group. For Jan to weigh."]]},
+
+{id:"zinc",g:"pm",name:"Zinc bisglycinate",dose:"6.5 mg",form:"Zinc bound to glycine, ~23 mg compound",nrv:65,bfr:"at",bfrTxt:"Exactly at BfR proposal (6.5 mg)",
+ one:"The all-rounder trace mineral, moved to the evening when the gendered add-ons died.",
+ body:"Needed by several hundred enzymes: immune defence, wound and skin repair, DNA and protein synthesis, vision, fertility, and normal testosterone levels.",
+ why:"Very broad claim set that covers immune, cognition, and hair-skin-nails in one ingredient. Moved into the evening stick on 22 Sep when the male and female add-ons were killed.",
+ formWhy:"Bisglycinate, same chelate family as the magnesium. Gentle on the stomach, which matters taken without food.",
+ doseWhy:"65% NRV, exactly at the BfR proposal.",
+ jobs:{immune:"c",beauty:"c",mind:"c",bone:"c"},
+ claims:["Normal cognitive function","Normal function of the immune system","Protection of cells from oxidative stress","Maintenance of normal hair, nails, skin","Maintenance of normal bones and vision","Normal testosterone levels in the blood","Normal fertility and reproduction","Normal DNA and protein synthesis, role in cell division"],
+ flags:[["risk","Stacking rule. Already on the BfR line, so any add-on with zinc doubles it to 13 mg. This is what makes the libido add-on hard to build."]]},
+
+{id:"flavour",g:"pm",name:"Flavour, acid, sweetener",dose:"2.2–2.6 g",form:"Direction: sour cherry. Acid and sweetener type not specified",nrv:null,bfr:"na",bfrTxt:"Not a nutrient",
+ one:"Not a nutrient, but it decides whether anyone drinks the stick twice.",
+ body:"Masks the bitter, metallic and salty notes of magnesium and potassium. The acid (likely citric or malic) brightens taste; the sweetener rounds it off without sugar.",
+ why:"Adherence. An evening drink that tastes medicinal does not survive week two, and the retention thesis depends on daily use. Borrowed from Cadence Recover Sleep: sour cherry, one full glass, 60 minutes before bed.",
+ formWhy:"Absorbs the slack in the stick: the Mg compound mass swings by ~0.43 g with grade, and the flavour band moves to keep the fill at ~7 g.",
+ doseWhy:"Whatever is left of 7 g after the actives.",
+ jobs:{},claims:[],claimNote:"No claim. Note: tart cherry has its own sleep folklore. The flavour must not be used to imply a sleep effect by association.",
+ flags:[["open","Flavour brief with three concepts, including sour cherry (open item 9)."],["open","Sweetener choice affects the clean-label story. Stevia, sucralose and sugar-alcohols each have a cohort reputation."]]},
+
+/* ---------- ADD-ONS ---------- */
+{id:"creatine",g:"addon",name:"Creatine monohydrate",dose:"3 g",form:"Stick or tub. Creatine monohydrate (HKS quoted)",nrv:null,bfr:"none",bfrTxt:"No NRV",addonStatus:"Sport · unbuildable",
+ one:"The best-evidenced answer to muscle loss after 50. Currently stuck on minimum order quantity.",
+ body:"Tops up phosphocreatine stores in muscle, the fast energy reserve for short, hard efforts. With strength training it helps build and keep muscle, which matters as muscle mass declines from mid-life. Brain research is emerging but not claimable.",
+ why:"Carries the muscle-loss angle for the cohort. Moved out of the base into a Sport add-on on 22 Sep.",
+ formWhy:"Monohydrate is the most studied and cheapest form; everything else is marketing.",
+ doseWhy:"3 g is the claim condition for both authorised creatine claims.",
+ jobs:{bone:"c"},
+ claims:["Increases physical performance in successive bursts of short-term, high-intensity exercise (3 g)"],
+ art14:"Reg. (EU) 2017/672: daily creatine can enhance the effect of resistance training on muscle strength in adults over 55 (3 g, with resistance training). Applicant data protection status unverified.",
+ flags:[["open","HKS minimum ~2,420–2,960 units against ~1,500 expected (30% attach on 5,000 packs). Not buildable at launch volumes (open item 6)."]]},
+
+{id:"omega3",g:"addon",name:"Omega-3 EPA + DHA (algal)",dose:"250 mg or 1,000 mg",form:"Softgel, algal oil",nrv:null,bfr:"none",bfrTxt:"No NRV",addonStatus:"Omega-3 · algal route",
+ one:"The heart fat. Its claim threshold makes the dose a cost decision, not a claims decision.",
+ body:"EPA and DHA are built into cell membranes, especially in heart, brain and eye. They feed into the body's signals that regulate inflammation and lower blood triglycerides at higher doses.",
+ why:"The best-known heart nutrient in the category, and the only route to more heart claims than B1's single one.",
+ formWhy:"Algal oil: vegan, no fishy aftertaste, cleaner sustainability story. Fish oil proved effectively unquotable.",
+ doseWhy:"Claim thresholds: 250 mg EPA+DHA for the heart claim, 2 g for triglycerides, 3 g for blood pressure. 1,000 mg buys no claim that 250 mg does not. Efficacy is a separate question for Jan.",
+ jobs:{heart:"c",mind:"c"},
+ claims:["Normal function of the heart (250 mg EPA+DHA)","DHA: normal brain function and normal vision (250 mg DHA)","Normal blood triglyceride levels (2 g, not reached)","Normal blood pressure (3 g, not reached)"],
+ flags:[["open","Both 250 mg and 1,000 mg being priced."],["note","Draft v2 in CLAUDE.md still shows 1,000 mg in the base. v1.2 moved it to an add-on."]]},
+
+{id:"gut",g:"addon",name:"Gut health",dose:"Not set",form:"Format open",nrv:null,bfr:"open",bfrTxt:"Composition not set",addonStatus:"Gut · open",
+ one:"A slot, not yet a product.",
+ body:"Composition and name still to be set (open item 7).",
+ why:"Gut health is a large, growing interest area for this age group, and a natural third life-area add-on.",
+ formWhy:"Open.",
+ doseWhy:"Open.",
+ jobs:{},claims:[],claimNote:"Watch-out for the brief: the word \"probiotic\" is itself treated as a health claim in the EU and no probiotic claim is authorised. Fibre-based routes have some authorised claims.",
+ flags:[["open","Composition and format (open item 7)."]]},
+
+{id:"libido",g:"addon",name:"Libido",dose:"Zn / Se / B6 based",form:"Capsule, most likely",nrv:null,bfr:"open",bfrTxt:"Blocked by base ceilings",addonStatus:"Libido · hardest",
+ one:"An add-on with no claim to stand on and no room in the stack.",
+ body:"Could only be built as a zinc, selenium and B6 product for hormonal and fertility function.",
+ why:"Added in v1.1 as a life-area add-on with clear consumer demand.",
+ formWhy:"Capsule most likely.",
+ doseWhy:"Zinc is already at the BfR ceiling in the evening and B6 is above it in the morning. That leaves selenium alone.",
+ jobs:{},claims:[],claimNote:"No authorised libido claim exists. The SKU name itself is a claim risk after OLG Köln \"MenoGlück\".",
+ flags:[["risk","Claude's 29 Sep read: kill it. Not decided."],["risk","Left out of the investor one-pager for the naming risk."]]},
+
+/* ---------- FORM / CARRIERS ---------- */
+{id:"duocap",g:"form",name:"DUOCAP capsule-in-capsule",dose:"2 units",form:"Lonza. Outer capsule holds oil, inner holds powder. Shell material (gelatin or vegan HPMC) open",nrv:null,bfr:"na",bfrTxt:"Route 1 · target",
+ one:"One swallow, two phases. The target morning format.",
+ body:"Keeps the oil phase (CoQ10, D3, K2, E) and the powder phase (C and the B-vitamins, iodine, chromium) apart in one unit, so each sits in the medium that suits it.",
+ why:"Looks and feels premium, gives Q10 the oil it needs, and keeps the regimen to two capsules. A visible piece of product innovation in a category of plain tablets.",
+ formWhy:"Technical feasibility with Marine Turri since 28 Sep. Lonza-only supply.",
+ doseWhy:"Two units for ~550 mg of dry-form mass.",
+ jobs:{},claims:[],claimNote:"Delivery form, no claims.",
+ flags:[["open","Does it fit two DUOCAPs, and at what cost against a standard capsule (open item 1)."],["open","Gelatin vs HPMC decides vegan status, which interacts with the D3 source and the algal omega-3 story."]]},
+
+{id:"route2",g:"form",name:"Hard cap + softgel",dose:"2 units",form:"Same two phases, side by side instead of nested",nrv:null,bfr:"na",bfrTxt:"Route 2 · de-risked",
+ one:"The fallback that keeps the architecture if Lonza cannot fit or price it.",
+ body:"Powder phase in a standard hard capsule, oil phase in a softgel.",
+ why:"Any CM with hard-cap and softgel lines can make it. Removes single-supplier dependence.",
+ formWhy:"Loses the one-swallow story, keeps the formulation intact.",
+ doseWhy:"Same doses.",
+ jobs:{},claims:[],claimNote:"Delivery form, no claims.",
+ flags:[["note","If CoQ10 were dropped, a third route opens: one ordinary capsule (~450–550 mg, size 00, unverified)."]]},
+
+{id:"oil",g:"form",name:"Oil carrier",dose:"Not specified",form:"Likely MCT or a vegetable oil",nrv:null,bfr:"na",bfrTxt:"Not in v1.2",
+ one:"The liquid the fat-soluble actives are dissolved in.",
+ body:"Dissolves D3, K2, E and CoQ10 so they stay stable and absorb with the oil.",
+ why:"Improves CoQ10 uptake substantially compared with dry powder.",
+ formWhy:"Choice affects absorption, label (allergens, vegan) and oxidation stability. Vitamin E helps protect it.",
+ doseWhy:"Supplier input: the oil-soluble grades of D3, K2 and E differ in mass from the dry ones.",
+ jobs:{},claims:[],claimNote:"Excipient.",
+ flags:[["open","Not specified in v1.2. Ask the CM to propose with the Lonza feasibility answer."]]},
+
+{id:"excip",g:"form",name:"Powder-phase fillers & flow aids",dose:"Not specified",form:"Typically cellulose, rice flour, or magnesium stearate",nrv:null,bfr:"na",bfrTxt:"Not in v1.2",
+ one:"What the CM adds so the powder fills a capsule evenly.",
+ body:"Flow aids and fillers keep a micro-dose powder flowing evenly so every capsule gets the same amount.",
+ why:"Manufacturing need. Clean-label brands (Sunday Natural) make a point of avoiding magnesium stearate and similar; this is a positioning choice as much as a technical one.",
+ formWhy:"The ~1.07 factor on the dry mass (513 → ~549 mg) is the allowance for overage and processing.",
+ doseWhy:"Set by the CM.",
+ jobs:{},claims:[],claimNote:"Excipient.",
+ flags:[["open","Decide the clean-label line before the CM quote round, so it is in the one specification."]]},
+
+{id:"stick",g:"form",name:"Evening stick pack",dose:"~7 g",form:"Single-serve stick, dissolved in a full glass of water",nrv:null,bfr:"na",bfrTxt:"Evening format",
+ one:"The ritual. Also the heaviest and most expensive unit to ship and pack.",
+ body:"Magnesium, potassium, glycine and zinc dissolved in water, taken ~60 minutes before bed.",
+ why:"Magnesium at 250 mg is too bulky for capsules. A drink creates a daily ritual that the capsule does not, and it is where the felt effect lives.",
+ formWhy:"Powder in a stick dissolves fully and lets flavour do its masking job.",
+ doseWhy:"~4.4–4.8 g actives, ~2.2–2.6 g flavour.",
+ jobs:{},claims:[],claimNote:"Delivery form, no claims.",
+ flags:[["note","Two dosage forms a day means two fill-and-finish operations, which feeds into COGS and MOQs."]]},
+
+/* ---------- REJECTED ---------- */
+{id:"valerian",g:"rejected",name:"Valerian",dose:"Rejected 28 Sep",form:"Botanical",nrv:null,bfr:"out",bfrTxt:"Rejected",
+ one:"The classic German sleep herb, and wrong for us on three counts.",
+ body:"Root extract traditionally used for sleep and nervousness.",
+ why:"Rejected: botanical with no authorised claim, the effective dose is medicine territory (registered valerian medicines exist in Germany), and it is the worst possible flavour brief.",
+ formWhy:"–",doseWhy:"–",jobs:{sleep:"s"},claims:[],claimNote:"On-hold botanical claims cannot be used after EuGH C-386/23 (2025).",flags:[]},
+{id:"melatonin",g:"rejected",name:"Melatonin",dose:"Parked 28 Sep",form:"–",nrv:null,bfr:"out",bfrTxt:"Parked",
+ one:"The only sleep claim in EU law, with a classification fight attached.",
+ body:"The body's own darkness signal that shifts the sleep clock.",
+ why:"Parked as an opt-in after gate 2. It has the only authorised EU sleep claim (reduces time to fall asleep, 1 mg), but at 1 mg its classification as food versus medicine is contested in Germany.",
+ formWhy:"–",doseWhy:"–",jobs:{sleep:"s"},claims:["Reduces the time it takes to fall asleep (1 mg before bedtime). Not usable for us today."],flags:[["open","Revisit after gate 2."]]},
+{id:"sodium",g:"rejected",name:"Sodium",dose:"Rejected 28 Sep",form:"–",nrv:null,bfr:"out",bfrTxt:"Rejected",
+ one:"Would undo the blood-pressure story.",
+ body:"Electrolyte, partner to potassium.",
+ why:"Rejected: no claim, fights the potassium blood-pressure story, and reads as a sports drink.",
+ formWhy:"–",doseWhy:"–",jobs:{},claims:[],flags:[]},
+{id:"trp",g:"rejected",name:"L-Tryptophan",dose:"Rejected 28 Sep",form:"–",nrv:null,bfr:"out",bfrTxt:"Rejected",
+ one:"A registered sleep medicine in Germany.",
+ body:"Amino acid precursor of serotonin and melatonin.",
+ why:"Rejected: registered as a sleep medicine in Germany, and interacts with antidepressants.",
+ formWhy:"–",doseWhy:"–",jobs:{sleep:"s"},claims:[],flags:[]},
+{id:"ashwa",g:"rejected",name:"Ashwagandha",dose:"Rejected (since 20 Aug)",form:"Botanical",nrv:null,bfr:"out",bfrTxt:"Rejected",
+ one:"The trend herb with the worst regulatory weather.",
+ body:"Adaptogenic root extract marketed for stress and sleep.",
+ why:"Rejected: BfR advises restraint, Denmark has banned it, and German Abmahnungen were running in Sep 2026. Botanical, so no usable claims.",
+ formWhy:"–",doseWhy:"–",jobs:{sleep:"s"},claims:[],flags:[]},
+{id:"calcium",g:"rejected",name:"Calcium",dose:"Dropped 22 Sep",form:"Was in the women's add-on (400 mg)",nrv:null,bfr:"out",bfrTxt:"Dropped",
+ one:"Lost its home when the gendered add-ons were killed, and took an Art. 14 claim with it.",
+ body:"Main mineral of bone.",
+ why:"Dropped with the women's add-on. That removed the Art. 14 claim on reducing bone-mineral loss in post-menopausal women, one of the two disease-risk claims Memo v4 called a differentiator.",
+ formWhy:"–",doseWhy:"–",jobs:{bone:"c"},claims:[],flags:[["open","A future Bone add-on could bring it back, but a menopause-suggestive SKU name is itself a claim risk after OLG Köln \"MenoGlück\"."]]},
+{id:"selenium",g:"rejected",name:"Selenium",dose:"Dropped 22 Sep",form:"Was in both gendered add-ons (40 µg)",nrv:null,bfr:"out",bfrTxt:"Dropped",
+ one:"Out of the base, possibly back in the libido add-on.",
+ body:"Trace mineral for antioxidant enzymes, thyroid hormone activation, hair and sperm production.",
+ why:"Dropped with the gendered add-ons. Its hair, oxidative-stress and spermatogenesis claims went with it.",
+ formWhy:"–",doseWhy:"–",jobs:{beauty:"c",immune:"c"},claims:[],flags:[["open","Stacking check owed before any add-on carries it."]]}
+];
+
+const state={filter:"all",job:null,sel:"coq10"};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tagFor=d=>{
+  const m={above:["t-above","above BfR"],at:["t-at","at BfR"],within:["t-within","within BfR"],none:["t-none","no NRV"],open:["t-open","open"],out:["t-out",d.bfrTxt.toLowerCase()],na:["t-none",d.g==="form"?"form":"no nutrient"]};
+  if(d.addonStatus){const s=d.addonStatus.split("·")[1].trim();return ["t-open",s]}
+  return m[d.bfr];
+};
+const isBase=d=>["oil","powder","pm"].includes(d.g);
+const hasRisk=d=>d.flags.some(f=>f[0]==="risk");
+function visible(d){
+  const f=state.filter;
+  if(f==="base"&&!isBase(d))return false;
+  if(f==="addon"&&d.g!=="addon")return false;
+  if(f==="form"&&d.g!=="form")return false;
+  if(f==="rejected"&&d.g!=="rejected")return false;
+  if(f==="flag"&&!hasRisk(d))return false;
+  return true;
+}
+const jobMatch=d=>!state.job||(d.jobs&&d.jobs[state.job]);
+
+function buildControls(){
+  const gr=$("#groupRow");
+  FILTERS.forEach(([k,l])=>{const b=document.createElement("button");b.className="chip";b.id="f-"+k;b.textContent=l;b.setAttribute("aria-pressed",k===state.filter);b.onclick=()=>{state.filter=k;render()};gr.appendChild(b)});
+  const jr=$("#jobRow");
+  Object.entries(JOBS).forEach(([k,l])=>{const b=document.createElement("button");b.className="chip";b.id="j-"+k;
+    const n=D.filter(d=>isBase(d)&&d.jobs[k]).length;
+    b.innerHTML=esc(l)+' <span class="mono" style="opacity:.6">'+n+'</span>';
+    b.setAttribute("aria-pressed","false");b.onclick=()=>{state.job=state.job===k?null:k;render()};jr.appendChild(b)});
+}
+
+function render(){
+  document.querySelectorAll("#groupRow .chip").forEach(b=>b.setAttribute("aria-pressed",b.id==="f-"+state.filter));
+  document.querySelectorAll("#jobRow .chip").forEach(b=>b.setAttribute("aria-pressed",b.id==="j-"+state.job));
+  const idx=$("#index");idx.innerHTML="";
+  GROUPS.forEach(([g,label])=>{
+    const items=D.filter(d=>d.g===g&&visible(d));
+    if(!items.length)return;
+    const wrap=document.createElement("div");wrap.className="grp";
+    wrap.innerHTML='<h3><span>'+esc(label)+'</span><span>'+items.length+'</span></h3>';
+    items.forEach(d=>{
+      const [tc,tl]=tagFor(d);
+      const b=document.createElement("button");b.className="item"+(jobMatch(d)?"":" dim");b.type="button";
+      b.setAttribute("aria-current",d.id===state.sel);
+      b.innerHTML='<span class="nm">'+esc(d.name)+'</span><span class="ds">'+esc(d.dose)+'</span><span class="sub"><span class="tag '+tc+'">'+esc(tl)+'</span></span>';
+      b.onclick=()=>{state.sel=d.id;render();if(window.innerWidth<=860)$("#dossier").scrollIntoView({behavior:"smooth",block:"start"})};
+      wrap.appendChild(b);
+    });
+    idx.appendChild(wrap);
+  });
+  renderDossier();
+}
+
+function gauge(d){
+  if(d.nrv==null)return "";
+  // log scale 10% .. 1000%
+  const W=560,H=58,x0=8,x1=W-8,lo=Math.log10(10),hi=Math.log10(1200);
+  const X=v=>x0+(Math.log10(v)-lo)/(hi-lo)*(x1-x0);
+  const ticks=[10,15,100,1000];
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Dose as percent of NRV on a log scale">';
+  s+='<rect x="'+x0+'" y="18" width="'+(x1-x0)+'" height="10" rx="5" fill="var(--teal-soft)"/>';
+  s+='<rect x="'+x0+'" y="18" width="'+(X(d.nrv)-x0)+'" height="10" rx="5" fill="'+(d.bfr==="above"?"var(--risk)":"var(--teal)")+'"/>';
+  ticks.forEach(t=>{s+='<line x1="'+X(t)+'" x2="'+X(t)+'" y1="30" y2="36" stroke="var(--muted)" stroke-width="1"/><text x="'+X(t)+'" y="48" text-anchor="middle" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--muted)">'+(t===15?"15% claim":t+"%")+'</text>'});
+  if(d.bfrPct){s+='<line x1="'+X(d.bfrPct)+'" x2="'+X(d.bfrPct)+'" y1="10" y2="32" stroke="var(--amber)" stroke-width="2.5"/><text x="'+X(d.bfrPct)+'" y="8" text-anchor="middle" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--amber)">BfR '+Math.round(d.bfrPct)+'%</text>'}
+  s+='</svg>';
+  return '<div class="gauge"><span class="eyebrow">Dose as % of NRV · log scale'+(d.bfrPct?' · amber line = BfR proposal':'')+'</span>'+s+'</div>';
+}
+
+function renderDossier(){
+  const list=D.filter(visible);
+  let d=D.find(x=>x.id===state.sel);
+  if(!d||!visible(d)){d=list[0];state.sel=d?d.id:null}
+  const el=$("#dossier");
+  if(!d){el.innerHTML="<p>No ingredients match this filter.</p>";return}
+  const [tc,tl]=tagFor(d);
+  const grpLabel=GROUPS.find(g=>g[0]===d.g)[1];
+  const jobs=Object.entries(d.jobs||{}).map(([k,v])=>'<span class="job '+v+'">'+esc(JOBS[k])+'</span>').join("");
+  const claims=d.claims.length?'<ul class="claims">'+d.claims.map(c=>"<li>"+esc(c)+"</li>").join("")+"</ul>":"";
+  const pos=list.findIndex(x=>x.id===d.id);
+  const prev=list[pos-1],next=list[pos+1];
+  el.innerHTML=
+   '<div class="d-head"><span class="eyebrow">'+esc(grpLabel)+'</span><h2>'+esc(d.name)+'</h2>'+
+   '<div class="meta"><span class="tag '+tc+'">'+esc(tl)+'</span></div><p class="oneliner">'+esc(d.one)+'</p></div>'+
+   '<div class="facts"><div><span class="k">Dose</span><span class="v">'+esc(d.dose)+'</span></div>'+
+   (d.nrv!=null?'<div><span class="k">% NRV</span><span class="v">'+d.nrv+'%</span></div>':'')+
+   '<div><span class="k">BfR position</span><span class="v">'+esc(d.bfrTxt)+'</span></div>'+
+   '<div><span class="k">Form</span><span class="v" style="font-weight:500;font-size:13.5px">'+esc(d.form)+'</span></div></div>'+
+   gauge(d)+
+   (jobs?'<div class="sec"><h4>Jobs in the stack</h4><div class="jobs">'+jobs+'</div></div>':'')+
+   '<div class="sec"><h4>What it does in the body</h4><p>'+esc(d.body)+'</p></div>'+
+   '<div class="sec"><h4>'+(d.g==="rejected"?"Why it is out":"Why it is in our stack")+'</h4><p>'+esc(d.why)+'</p></div>'+
+   (d.formWhy&&d.formWhy!=="–"?'<div class="sec"><h4>Why this form</h4><p>'+esc(d.formWhy)+'</p></div>':'')+
+   (d.doseWhy&&d.doseWhy!=="–"?'<div class="sec"><h4>Why this dose</h4><p>'+esc(d.doseWhy)+'</p></div>':'')+
+   '<div class="sec"><h4>What we can say · authorised claims</h4>'+(claims||"")+(d.claimNote?'<p>'+esc(d.claimNote)+'</p>':(claims?'':'<p>None.</p>'))+(d.art14?'<div class="art14">'+esc(d.art14)+'</div>':'')+'</div>'+
+   (d.flags.length?'<div class="sec" style="max-width:none"><h4>Flags</h4><div class="flags">'+d.flags.map(f=>'<div class="flag '+f[0]+'"><span class="k">'+({risk:"Risk",open:"Open",note:"Note"}[f[0]])+'</span><span>'+esc(f[1])+'</span></div>').join("")+'</div></div>':'')+
+   '<div class="nav"><button type="button" id="prevBtn"'+(prev?'':' disabled')+'>'+(prev?'← '+esc(prev.name):'Start')+'</button><button type="button" id="nextBtn"'+(next?'':' disabled')+'>'+(next?esc(next.name)+' →':'End')+'</button></div>';
+  if(prev)$("#prevBtn").onclick=()=>{state.sel=prev.id;render()};
+  if(next)$("#nextBtn").onclick=()=>{state.sel=next.id;render()};
+}
+buildControls();render();
+</script>
+
+</body></html>
